@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мой конкурс — прототип</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+  *{box-sizing:border-box;}
+  html,body{ margin:0; height:100%; background:#DAD3BE; font-family:'Inter',sans-serif; }
+  #root{ min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px 12px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState } = React;
+
+const INK = "#1C2541";
+const PAPER = "#F1ECDE";
+const PAPER_DARK = "#E7E0CC";
+const SEAL = "#7A1F2B";
+const GOLD = "#8A6A22";
+const SAFE = "#3F6B4A";
+const WARN = "#8A6A22";
+const RISK = "#7A1F2B";
+
+const ZONES = {
+  safe: { label: "Проходишь", color: SAFE },
+  border: { label: "Граница", color: WARN },
+  risk: { label: "Риск", color: RISK },
+};
+
+const PROGRAMS = [
+  {
+    id: 1,
+    name: "Прикладная математика",
+    uni: "МГУ им. Ломоносова",
+    userScore: 292,
+    history: [
+      { year: "2023", score: 288 },
+      { year: "2024", score: 293 },
+      { year: "2025", score: 298 },
+    ],
+    seats: { total: 60, general: 35, bvi: 15, special: 6, target: 4 },
+    zone: "border",
+    position: { current: 28, delta: 3, ofSeats: 35 },
+    applied: true,
+    qa: [
+      { tag: "Поступление", q: "Реально ли пройти с баллом около 290?", a: "Я поступил с 291 в общем конкурсе - но в прошлом году порог был выше. Смотри не на общий проходной, а на позицию именно в общем потоке, БВИ туда не попадают.", author: "3 курс" },
+      { tag: "Преподаватели", q: "Как строгие препы на первом курсе?", a: "Матан у Ковалёвой - жёстко, но объясняет понятно. Линал полегче. Готовься, что первая сессия будет отсеивающей.", author: "выпуск 2024" },
+      { tag: "Нагрузка", q: "Сколько реально времени уходит на учёбу?", a: "Первые два курса - почти каждый день пары + домашки. С третьего курса появляется воздух для подработки.", author: "2 курс" },
+    ],
+  },
+  {
+    id: 2,
+    name: "Программная инженерия",
+    uni: "НИУ ВШЭ",
+    userScore: 305,
+    history: [
+      { year: "2023", score: 280 },
+      { year: "2024", score: 285 },
+      { year: "2025", score: 287 },
+    ],
+    seats: { total: 90, general: 60, bvi: 20, special: 7, target: 3 },
+    zone: "safe",
+    position: { current: 12, delta: -2, ofSeats: 60 },
+    applied: true,
+    qa: [
+      { tag: "Поступление", q: "Насколько сильно давят олимпиадники?", a: "В этом году БВИ забрали примерно треть мест - общий конкурс реально идёт за оставшиеся. Смотри именно на них.", author: "1 курс" },
+      { tag: "Общее впечатление", q: "Стоит ли идти сюда, если не уверен в специальности?", a: "Первый год очень широкий - можно понять, твоё это или нет, до того как выбирать специализацию.", author: "3 курс" },
+    ],
+  },
+  {
+    id: 3,
+    name: "Лингвистика",
+    uni: "РГГУ",
+    userScore: 260,
+    history: [
+      { year: "2023", score: 268 },
+      { year: "2024", score: 270 },
+      { year: "2025", score: 272 },
+    ],
+    seats: { total: 40, general: 30, bvi: 4, special: 4, target: 2 },
+    zone: "risk",
+    position: { current: 33, delta: 5, ofSeats: 30 },
+    applied: false,
+    qa: [
+      { tag: "Нагрузка", q: "Правда, что тут учат сразу три языка?", a: "Да, с первого курса. Тяжело первые полгода, потом втягиваешься.", author: "2 курс" },
+    ],
+  },
+  {
+    id: 4,
+    name: "Экономика",
+    uni: "СПбГУ",
+    userScore: 275,
+    history: [
+      { year: "2023", score: 270 },
+      { year: "2024", score: 274 },
+      { year: "2025", score: 278 },
+    ],
+    seats: { total: 70, general: 45, bvi: 12, special: 8, target: 5 },
+    zone: "border",
+    position: { current: 41, delta: -1, ofSeats: 45 },
+    applied: false,
+    qa: [
+      { tag: "Преподаватели", q: "Есть ли сильные практики среди преподавателей?", a: "Да, часть курсов ведут действующие аналитики из банков - это лучшие пары на потоке.", author: "выпуск 2023" },
+    ],
+  },
+];
+
+const NOTIFICATIONS = [
+  { id: 1, programId: 1, type: "position", text: "Прикладная математика (МГУ): ваша позиция улучшилась на 3 - теперь 28 из 35 мест общего конкурса.", time: "2 часа назад" },
+  { id: 2, programId: 3, type: "risk", text: "Лингвистика (РГГУ): позиция ухудшилась на 5. Сейчас вы за пределами общего конкурса.", time: "5 часов назад" },
+  { id: 3, programId: 2, type: "recommend", text: "Программная инженерия (ВШЭ): вы уверенно проходите. Возможно, стоит поставить эту программу приоритетом №1.", time: "вчера" },
+  { id: 4, programId: 4, type: "deadline", text: "Экономика (СПбГУ): до конца приёма документов осталось 3 дня.", time: "вчера" },
+];
+
+function Icon({ name, size = 16, color = INK }) {
+  const s = { width: size, height: size, display: "inline-block", verticalAlign: "middle" };
+  const paths = {
+    chevronRight: <path d="M9 6l6 6-6 6" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    chevronLeft: <path d="M15 6l-6 6 6 6" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    plus: <path d="M12 5v14M5 12h14" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />,
+    check: <path d="M20 6L9 17l-5-5" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    up: <path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    down: <path d="M12 5v14M19 12l-7 7-7-7" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    clock: <><circle cx="12" cy="12" r="9" fill="none" stroke={color} strokeWidth="2" /><path d="M12 7v5l3 3" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" /></>,
+    bell: <path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9zM10 21a2 2 0 004 0" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    grad: <path d="M2 9l10-5 10 5-10 5-10-5zM6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    msg: <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+  };
+  return <svg viewBox="0 0 24 24" style={s}>{paths[name]}</svg>;
+}
+
+function Stamp({ zone, size = 64 }) {
+  const z = ZONES[zone];
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%", border: `2px solid ${z.color}`, color: z.color,
+      transform: "rotate(-8deg)", fontFamily: "'PT Serif', serif", fontWeight: 700, fontSize: size * 0.13,
+      display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center",
+      textTransform: "uppercase", letterSpacing: "0.02em", lineHeight: 1.05, padding: 4, flexShrink: 0,
+      boxShadow: `inset 0 0 0 1px ${z.color}55`,
+    }}>{z.label}</div>
+  );
+}
+
+function Ticket({ children, style }) {
+  return <div style={{ background: PAPER, border: `1px solid ${INK}22`, borderRadius: 4, boxShadow: "0 1px 0 rgba(28,37,65,0.06)", position: "relative", ...style }}>{children}</div>;
+}
+function Perf() { return <div style={{ borderTop: `2px dashed ${INK}33`, margin: "0 16px" }} />; }
+
+function TopBar({ title, onBack }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 16px 12px", borderBottom: `1px solid ${INK}22` }}>
+      {onBack && <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon name="chevronLeft" size={22} color={INK} /></button>}
+      <Icon name="grad" size={20} color={SEAL} />
+      <h1 style={{ fontFamily: "'PT Serif', serif", fontSize: 19, fontWeight: 700, color: INK, margin: 0 }}>{title}</h1>
+    </div>
+  );
+}
+
+function BottomNav({ screen, setScreen }) {
+  const items = [
+    { id: "dashboard", label: "Мой список", icon: "grad" },
+    { id: "priority", label: "Приоритеты", icon: "check" },
+    { id: "tracker", label: "Трекер", icon: "clock" },
+    { id: "notifications", label: "События", icon: "bell" },
+    { id: "summary", label: "Итог", icon: "chevronRight" },
+  ];
+  return (
+    <div style={{ display: "flex", borderTop: `1px solid ${INK}22`, background: PAPER_DARK }}>
+      {items.map((it) => {
+        const active = screen === it.id;
+        return (
+          <button key={it.id} onClick={() => setScreen(it.id)} style={{
+            flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+            padding: "9px 2px 8px", background: "none", border: "none", cursor: "pointer",
+          }}>
+            <Icon name={it.icon} size={18} color={active ? SEAL : `${INK}88`} />
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: active ? 600 : 500, color: active ? SEAL : `${INK}88` }}>{it.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScoreBar({ score, threshold, zone }) {
+  const z = ZONES[zone];
+  const min = Math.min(score, threshold) - 12;
+  const max = Math.max(score, threshold) + 12;
+  const pct = (v) => ((v - min) / (max - min)) * 100;
+  return (
+    <div style={{ position: "relative", height: 34, marginTop: 6 }}>
+      <div style={{ position: "absolute", top: 14, left: 0, right: 0, height: 4, background: `${INK}18`, borderRadius: 2 }} />
+      <div style={{ position: "absolute", top: 6, left: `calc(${pct(threshold)}% - 1px)`, width: 2, height: 20, background: INK }} />
+      <span style={{ position: "absolute", top: -14, left: `calc(${pct(threshold)}% - 30px)`, fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", color: `${INK}99`, width: 60, textAlign: "center" }}>порог {threshold}</span>
+      <div style={{ position: "absolute", top: 9, left: `calc(${pct(score)}% - 8px)`, width: 16, height: 16, borderRadius: "50%", background: z.color, border: `2px solid ${PAPER}`, boxShadow: `0 0 0 1px ${z.color}` }} />
+    </div>
+  );
+}
+
+function SeatBreakdown({ seats }) {
+  const segs = [
+    { label: "Общий конкурс", value: seats.general, color: INK },
+    { label: "БВИ (олимпиады)", value: seats.bvi, color: GOLD },
+    { label: "Особая квота (СВО)", value: seats.special, color: SEAL },
+    { label: "Целевая квота", value: seats.target, color: `${INK}55` },
+  ];
+  return (
+    <div>
+      <div style={{ display: "flex", height: 14, borderRadius: 3, overflow: "hidden", border: `1px solid ${INK}33` }}>
+        {segs.map((s) => <div key={s.label} style={{ width: `${(s.value / seats.total) * 100}%`, background: s.color }} />)}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 10px", marginTop: 10 }}>
+        {segs.map((s) => (
+          <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "Inter, sans-serif", fontSize: 11.5, color: INK }}>
+            <span style={{ width: 9, height: 9, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+            {s.label} - <b style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{s.value}</b>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MiniChart({ data }) {
+  const w = 260, h = 100, pad = 10;
+  const scores = data.map(d => d.score);
+  const min = Math.min(...scores) - 4, max = Math.max(...scores) + 4;
+  const x = (i) => pad + (i / (data.length - 1)) * (w - pad * 2);
+  const y = (v) => h - pad - ((v - min) / (max - min)) * (h - pad * 2);
+  const points = data.map((d, i) => `${x(i)},${y(d.score)}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 120 }}>
+      <polyline points={points} fill="none" stroke={SEAL} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+      {data.map((d, i) => (
+        <g key={i}>
+          <circle cx={x(i)} cy={y(d.score)} r="4" fill={SEAL} />
+          <text x={x(i)} y={h - 1} fontSize="9" fontFamily="Inter" fill={`${INK}99`} textAnchor="middle">{d.year}</text>
+          <text x={x(i)} y={y(d.score) - 8} fontSize="10" fontFamily="IBM Plex Mono" fill={INK} textAnchor="middle">{d.score}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function Onboarding({ onDone }) {
+  const [scores, setScores] = useState({ math: "", rus: "", inf: "" });
+  return (
+    <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, height: "100%" }}>
+      <div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: SEAL, letterSpacing: "0.03em" }}>ЭКЗАМЕНАЦИОННЫЙ ЛИСТ</div>
+        <h2 style={{ fontFamily: "'PT Serif', serif", fontSize: 24, color: INK, margin: "6px 0 0" }}>Твои баллы ЕГЭ</h2>
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: `${INK}99`, marginTop: 6 }}>Заполни, чтобы увидеть реальные шансы по каждой программе</p>
+      </div>
+      {[{ key: "math", label: "Математика" }, { key: "rus", label: "Русский язык" }, { key: "inf", label: "Информатика" }].map((f) => (
+        <label key={f.key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12.5, color: INK, fontWeight: 500 }}>{f.label}</span>
+          <input type="number" max={100} placeholder="0-100" value={scores[f.key]}
+            onChange={(e) => setScores({ ...scores, [f.key]: e.target.value })}
+            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 18, padding: "10px 12px", border: `1px solid ${INK}44`, borderRadius: 4, background: PAPER, color: INK, outline: "none" }} />
+        </label>
+      ))}
+      <div style={{ flex: 1 }} />
+      <button onClick={onDone} style={{ background: SEAL, color: PAPER, border: "none", borderRadius: 4, padding: "13px 0", fontFamily: "Inter, sans-serif", fontWeight: 600, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+        Смотреть мои программы <Icon name="chevronRight" size={16} color={PAPER} />
+      </button>
+    </div>
+  );
+}
+
+function Dashboard({ programs, openProgram }) {
+  return (
+    <div style={{ padding: "14px 16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12.5, color: `${INK}99` }}>{programs.length} программ в списке</span>
+      {programs.map((p, idx) => {
+        const threshold = p.history[p.history.length - 1].score;
+        return (
+          <Ticket key={p.id} style={{ cursor: "pointer" }}>
+            <div onClick={() => openProgram(p.id)} style={{ padding: "14px 14px 10px", display: "flex", gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, color: `${INK}88` }}>ПРИОРИТЕТ №{idx + 1}</div>
+                <div style={{ fontFamily: "'PT Serif', serif", fontSize: 16.5, fontWeight: 700, color: INK, marginTop: 2 }}>{p.name}</div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12.5, color: `${INK}99` }}>{p.uni}</div>
+                <ScoreBar score={p.userScore} threshold={threshold} zone={p.zone} />
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, fontFamily: "Inter, sans-serif", fontSize: 11.5, color: p.position.delta >= 0 ? SAFE : RISK }}>
+                  <Icon name={p.position.delta >= 0 ? "up" : "down"} size={13} color={p.position.delta >= 0 ? SAFE : RISK} />
+                  за сутки: {p.position.delta >= 0 ? "+" : ""}{p.position.delta} позиций
+                </div>
+              </div>
+              <Stamp zone={p.zone} size={58} />
+            </div>
+            <Perf />
+            <div style={{ padding: "8px 14px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, color: `${INK}88` }}>Позиция {p.position.current} из {p.position.ofSeats} мест общего конкурса</span>
+              <Icon name="chevronRight" size={16} color={`${INK}66`} />
+            </div>
+          </Ticket>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProgramDetail({ program, onBack, onMarkApplied }) {
+  const [tab, setTab] = useState("info");
+  const threshold = program.history[program.history.length - 1].score;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <TopBar title={program.name} onBack={onBack} />
+      <div style={{ padding: "10px 16px 0", fontFamily: "Inter, sans-serif", fontSize: 12.5, color: `${INK}99` }}>{program.uni}</div>
+      <div style={{ display: "flex", gap: 6, padding: "12px 16px 0" }}>
+        {[{ id: "info", label: "Прогноз" }, { id: "qa", label: `Вопросы студентам (${program.qa.length})` }].map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            fontFamily: "Inter, sans-serif", fontSize: 12.5, fontWeight: 600, padding: "7px 12px", borderRadius: 20, cursor: "pointer",
+            border: `1px solid ${tab === t.id ? SEAL : INK + "33"}`, background: tab === t.id ? SEAL : "transparent", color: tab === t.id ? PAPER : INK,
+          }}>{t.label}</button>
+        ))}
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+        {tab === "info" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <Stamp zone={program.zone} size={70} />
+              <div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 22, fontWeight: 600, color: INK }}>{program.userScore} <span style={{ fontSize: 13, color: `${INK}77` }}>твой балл</span></div>
+                <ScoreBar score={program.userScore} threshold={threshold} zone={program.zone} />
+              </div>
+            </div>
+            <Ticket style={{ padding: 14 }}>
+              <div style={{ fontFamily: "'PT Serif', serif", fontWeight: 700, fontSize: 14.5, color: INK, marginBottom: 4 }}>Что это значит</div>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: `${INK}CC`, margin: 0, lineHeight: 1.5 }}>
+                {program.zone === "safe" && "Твой балл выше проходного за все три года - программа в зоне уверенного прохождения по общему конкурсу."}
+                {program.zone === "border" && "Твой балл рядом с прошлогодним порогом. Решение может зависеть от того, сколько мест реально останется после БВИ и квот - держи программу под наблюдением."}
+                {program.zone === "risk" && "Твой балл ниже прошлогоднего порога в общем конкурсе. Стоит держать эту программу не выше приоритета 3-4 и иметь запасной вариант."}
+              </p>
+            </Ticket>
+            <div>
+              <div style={{ fontFamily: "'PT Serif', serif", fontWeight: 700, fontSize: 14.5, color: INK, marginBottom: 8 }}>Проходной балл по годам</div>
+              <div style={{ background: PAPER, border: `1px solid ${INK}22`, borderRadius: 4, padding: "10px 4px 0" }}><MiniChart data={program.history} /></div>
+            </div>
+            <div>
+              <div style={{ fontFamily: "'PT Serif', serif", fontWeight: 700, fontSize: 14.5, color: INK, marginBottom: 8 }}>Из чего складывается конкурс ({program.seats.total} бюджетных мест)</div>
+              <SeatBreakdown seats={program.seats} />
+            </div>
+            <button onClick={() => onMarkApplied(program.id)} style={{
+              marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+              background: program.applied ? "transparent" : SEAL, color: program.applied ? SAFE : PAPER,
+              border: program.applied ? `1px solid ${SAFE}` : "none", borderRadius: 4, padding: "12px 0",
+              fontFamily: "Inter, sans-serif", fontWeight: 600, fontSize: 13.5, cursor: "pointer",
+            }}>
+              {program.applied ? <><Icon name="check" size={15} color={SAFE} /> Документы поданы - идёт отслеживание</> : "Отметить как поданные документы"}
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {program.qa.map((item, i) => (
+              <Ticket key={i} style={{ padding: 13 }}>
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: SEAL, border: `1px solid ${SEAL}55`, borderRadius: 10, padding: "2px 8px" }}>{item.tag.toUpperCase()}</span>
+                <div style={{ fontFamily: "'PT Serif', serif", fontWeight: 700, fontSize: 14, color: INK, margin: "8px 0 5px" }}>{item.q}</div>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: `${INK}CC`, margin: 0, lineHeight: 1.5 }}>{item.a}</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, fontFamily: "Inter, sans-serif", fontSize: 11, color: `${INK}77` }}>
+                  <Icon name="msg" size={12} color={`${INK}77`} /> {item.author}
+                </div>
+              </Ticket>
+            ))}
+            <button style={{ background: "transparent", border: `1px dashed ${INK}55`, borderRadius: 4, padding: "11px 0", fontFamily: "Inter, sans-serif", fontSize: 13, color: `${INK}99`, cursor: "pointer" }}>
+              + Задать свой вопрос студентам
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PriorityBuilder({ programs, setOrder }) {
+  const move = (idx, dir) => {
+    const arr = [...programs];
+    const j = idx + dir;
+    if (j < 0 || j >= arr.length) return;
+    [arr[idx], arr[j]] = [arr[j], arr[idx]];
+    setOrder(arr.map((p) => p.id));
+  };
+  return (
+    <div style={{ padding: "14px 16px 20px" }}>
+      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12.5, color: `${INK}99`, marginTop: 0 }}>Расставь программы по приоритету подачи - сервис подскажет, где стратегия рискованная.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {programs.map((p, i) => (
+          <Ticket key={p.id} style={{ padding: "11px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14, color: PAPER, background: INK, borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: "'PT Serif', serif", fontWeight: 700, fontSize: 14, color: INK }}>{p.name}</div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, color: ZONES[p.zone].color }}>{ZONES[p.zone].label}</div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <button onClick={() => move(i, -1)} disabled={i === 0} style={{ background: "none", border: `1px solid ${INK}33`, borderRadius: 3, cursor: "pointer", padding: 2, opacity: i === 0 ? 0.3 : 1 }}><Icon name="up" size={12} color={INK} /></button>
+              <button onClick={() => move(i, 1)} disabled={i === programs.length - 1} style={{ background: "none", border: `1px solid ${INK}33`, borderRadius: 3, cursor: "pointer", padding: 2, opacity: i === programs.length - 1 ? 0.3 : 1 }}><Icon name="down" size={12} color={INK} /></button>
+            </div>
+          </Ticket>
+        ))}
+      </div>
+      {programs[0] && programs[0].zone !== "safe" && (
+        <Ticket style={{ marginTop: 14, padding: 12, borderColor: WARN }}>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12.5, color: INK }}>⚠ Приоритет №1 сейчас не в зоне уверенного прохождения. Возможно, стоит поднять выше программу со статусом «Проходишь».</span>
+        </Ticket>
+      )}
+    </div>
+  );
+}
+
+function Tracker({ programs }) {
+  const applied = programs.filter((p) => p.applied);
+  return (
+    <div style={{ padding: "14px 16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12.5, color: `${INK}99` }}>Живое отслеживание позиции в рейтинговых списках</div>
+      {applied.map((p) => (
+        <Ticket key={p.id} style={{ padding: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontFamily: "'PT Serif', serif", fontWeight: 700, fontSize: 15, color: INK }}>{p.name}</div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: `${INK}99` }}>{p.uni}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: "#B08A3E" }}><Icon name="clock" size={13} color="#B08A3E" /> 6 дн.</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 12 }}>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 26, fontWeight: 600, color: INK }}>{p.position.current}</span>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12.5, color: `${INK}88` }}>место из {p.position.ofSeats}</span>
+            <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 3, fontFamily: "Inter, sans-serif", fontSize: 12.5, fontWeight: 600, color: p.position.delta >= 0 ? SAFE : RISK }}>
+              <Icon name={p.position.delta >= 0 ? "up" : "down"} size={13} color={p.position.delta >= 0 ? SAFE : RISK} /> {Math.abs(p.position.delta)} за сутки
+            </span>
+          </div>
+        </Ticket>
+      ))}
+    </div>
+  );
+}
+
+function Notifications({ items, programs }) {
+  const iconFor = (t) => t === "risk" ? "down" : t === "position" ? "up" : t === "deadline" ? "clock" : "bell";
+  const colorFor = (t) => t === "risk" ? RISK : t === "position" ? SAFE : t === "deadline" ? WARN : GOLD;
+  return (
+    <div style={{ padding: "14px 16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+      {items.map((n) => (
+        <Ticket key={n.id} style={{ padding: 12, display: "flex", gap: 10 }}>
+          <div style={{ paddingTop: 2 }}><Icon name={iconFor(n.type)} size={15} color={colorFor(n.type)} /></div>
+          <div>
+            <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: INK, lineHeight: 1.4 }}>{n.text}</p>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, color: `${INK}77`, marginTop: 5 }}>{n.time}</div>
+          </div>
+        </Ticket>
+      ))}
+    </div>
+  );
+}
+
+function Summary({ programs }) {
+  return (
+    <div style={{ padding: "14px 16px 24px" }}>
+      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12.5, color: `${INK}99`, marginTop: 0 }}>Сводная картина перед финальным решением - куда нести оригинал</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {programs.map((p, i) => (
+          <Ticket key={p.id} style={{ padding: 13, display: "flex", alignItems: "center", gap: 12 }}>
+            <Stamp zone={p.zone} size={46} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "'PT Serif', serif", fontWeight: 700, fontSize: 14, color: INK }}>{p.name}</div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, color: `${INK}99` }}>Приоритет {i + 1} · позиция {p.position.current} из {p.position.ofSeats}</div>
+            </div>
+          </Ticket>
+        ))}
+      </div>
+      <Ticket style={{ marginTop: 16, padding: 14, borderColor: SAFE }}>
+        <div style={{ fontFamily: "'PT Serif', serif", fontWeight: 700, fontSize: 14, color: SAFE, marginBottom: 4 }}>Рекомендация сервиса</div>
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: INK, margin: 0, lineHeight: 1.5 }}>Программная инженерия (ВШЭ) - самая надёжная позиция. Стоит рассмотреть, не поднять ли её выше в приоритетах.</p>
+      </Ticket>
+    </div>
+  );
+}
+
+function App() {
+  const [screen, setScreen] = useState("onboarding");
+  const [order, setOrder] = useState(PROGRAMS.map((p) => p.id));
+  const [applied, setApplied] = useState(PROGRAMS.filter((p) => p.applied).map((p) => p.id));
+  const [selectedId, setSelectedId] = useState(null);
+
+  const programs = order.map((id) => {
+    const base = PROGRAMS.find((p) => p.id === id);
+    return { ...base, applied: applied.includes(id) };
+  });
+
+  const markApplied = (id) => setApplied((a) => (a.includes(id) ? a : [...a, id]));
+  const selected = programs.find((p) => p.id === selectedId);
+
+  const titles = {
+    dashboard: "Мой список",
+    priority: "Конструктор приоритетов",
+    tracker: "Живой трекер",
+    notifications: "События",
+    summary: "Итоговая сводка",
+  };
+
+  return (
+    <div style={{ maxWidth: 380, width: "100%", height: 700, background: PAPER, border: `1px solid ${INK}33`, borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column", fontFamily: "Inter, sans-serif" }}>
+      {screen === "onboarding" && <Onboarding onDone={() => setScreen("dashboard")} />}
+      {screen !== "onboarding" && screen !== "detail" && (
+        <React.Fragment>
+          <TopBar title={titles[screen] || "Мой конкурс"} />
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {screen === "dashboard" && <Dashboard programs={programs} openProgram={(id) => { setSelectedId(id); setScreen("detail"); }} />}
+            {screen === "priority" && <PriorityBuilder programs={programs} setOrder={setOrder} />}
+            {screen === "tracker" && <Tracker programs={programs} />}
+            {screen === "notifications" && <Notifications items={NOTIFICATIONS} programs={programs} />}
+            {screen === "summary" && <Summary programs={programs} />}
+          </div>
+          <BottomNav screen={screen} setScreen={setScreen} />
+        </React.Fragment>
+      )}
+      {screen === "detail" && selected && <ProgramDetail program={selected} onBack={() => setScreen("dashboard")} onMarkApplied={markApplied} />}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
